@@ -11,8 +11,8 @@ info:
     - Crisis detection and intervention protocols.
   version: "1.0.0"
   contact:
-    name: "VentWell Engineering"
-    email: "dev@ventwell.io"
+    name: "Lokesh"
+    email: "lokesh.sinduluri@gmail.com"
 # servers:
 #   - url: "https://api.ventwell.io/v1"
 #     description: "Production Server"
