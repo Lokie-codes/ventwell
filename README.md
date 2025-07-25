@@ -1,3 +1,6 @@
+> *"But man is not made for defeat. A man can be destroyed but not defeated."*  
+> —*Ernest Hemingway, The Old Man and the Sea*
+
 # VentWell
 
 ![VentWell Logo](docs/ventwell_image.png)
