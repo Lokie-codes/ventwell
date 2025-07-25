@@ -1,0 +1,447 @@
+openapi: 3.0.3
+info:
+  title: "VentWell API"
+  description: |
+    The official API specification for VentWell, a private journaling application designed to help users process their thoughts and emotions in a safe and secure environment using an AI-guided conversational interface.
+    
+    Key Features:
+    - Secure user authentication with JWT.
+    - End-to-end encrypted journal entries and conversations.
+    - AI-powered conversational analysis and guidance.
+    - Crisis detection and intervention protocols.
+  version: "1.0.0"
+  contact:
+    name: "VentWell Engineering"
+    email: "dev@ventwell.io"
+# servers:
+#   - url: "https://api.ventwell.io/v1"
+#     description: "Production Server"
+#   - url: "https://api.staging.ventwell.io/v1"
+#     description: "Staging Server"
+tags:
+  - name: "Authentication"
+    description: "Endpoints for user registration and login."
+  - name: "Journal"
+    description: "Endpoints for managing journal entries and conversations."
+  - name: "Exercises"
+    description: "Endpoints for accessing standalone therapeutic exercises."
+
+paths:
+  /auth/register:
+    post:
+      tags:
+        - "Authentication"
+      summary: "Register a new user"
+      description: "Creates a new user account. The password should be pre-hashed on the client before sending."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserRegister'
+      responses:
+        '201':
+          description: "User created successfully. Returns auth tokens."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          description: "Invalid input, such as a username that already exists."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/login:
+    post:
+      tags:
+        - "Authentication"
+      summary: "Log in an existing user"
+      description: "Authenticates a user and returns a JWT access token and a refresh token."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserLogin'
+      responses:
+        '200':
+          description: "Login successful."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          description: "Unauthorized, invalid credentials."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /journal/entries:
+    get:
+      tags:
+        - "Journal"
+      summary: "List all journal entries for a user"
+      description: "Retrieves a summary list of all journal entries for the authenticated user, sorted by most recent."
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: "A list of journal entry summaries."
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/JournalEntrySummary'
+        '401':
+          description: "Unauthorized."
+    post:
+      tags:
+        - "Journal"
+      summary: "Create a new journal entry"
+      description: "Creates a new, empty journal entry. The first message can be sent via the `/interact` endpoint."
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                encryptedTitle:
+                  type: string
+                  description: "The encrypted title for the new journal entry."
+                  example: "U2FsdGVkX1+..."
+      responses:
+        '201':
+          description: "Journal entry created successfully."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JournalEntry'
+        '401':
+          description: "Unauthorized."
+
+  /journal/entries/{entryId}:
+    get:
+      tags:
+        - "Journal"
+      summary: "Get a specific journal entry with its full conversation"
+      description: "Retrieves the complete details and conversation history for a single journal entry."
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: "entryId"
+          in: "path"
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: "The full journal entry object."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JournalEntry'
+        '401':
+          description: "Unauthorized."
+        '404':
+          description: "Journal entry not found."
+    delete:
+      tags:
+        - "Journal"
+      summary: "Delete a journal entry"
+      description: "Permanently deletes a journal entry and its entire conversation history."
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: "entryId"
+          in: "path"
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: "Entry deleted successfully."
+        '401':
+          description: "Unauthorized."
+        '404':
+          description: "Journal entry not found."
+
+  /journal/entries/{entryId}/interact:
+    post:
+      tags:
+        - "Journal"
+      summary: "Send a message to the journal and get an AI response"
+      description: "The core interaction endpoint. Sends an encrypted user message and receives a plain-text AI response. The backend handles re-encryption for storage."
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: "entryId"
+          in: "path"
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserInteractionRequest'
+      responses:
+        '200':
+          description: "Successful interaction, AI response returned."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AIInteractionResponse'
+        '202':
+          description: "Crisis detected. The response body will contain pre-defined crisis intervention information, not a standard AI response."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CrisisResponse'
+        '401':
+          description: "Unauthorized."
+        '404':
+          description: "Journal entry not found."
+
+  /exercises:
+    get:
+      tags:
+        - "Exercises"
+      summary: "Get a list of all available exercises"
+      description: "Retrieves a summary list of all standalone therapeutic exercises, such as guided breathing or mindfulness techniques."
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: "A list of exercise summaries."
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ExerciseSummary'
+        '401':
+          description: "Unauthorized."
+
+  /exercises/{exerciseId}:
+    get:
+      tags:
+        - "Exercises"
+      summary: "Get the details of a specific exercise"
+      description: "Retrieves the full content and instructions for a single exercise."
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: "exerciseId"
+          in: "path"
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: "The full exercise object."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Exercise'
+        '401':
+          description: "Unauthorized."
+        '404':
+          description: "Exercise not found."
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    UserRegister:
+      type: object
+      properties:
+        username:
+          type: string
+          example: "alex_doe"
+        email:
+          type: string
+          format: email
+          example: "alex@example.com"
+        passwordHash:
+          type: string
+          description: "Client-side hash of the user's password."
+          example: "$argon2id$v=19$m=65536,t=3,p=4$..."
+      required:
+        - username
+        - email
+        - passwordHash
+
+    UserLogin:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          example: "alex@example.com"
+        passwordHash:
+          type: string
+          description: "Client-side hash of the user's password."
+          example: "$argon2id$v=19$m=65536,t=3,p=4$..."
+      required:
+        - email
+        - passwordHash
+
+    AuthResponse:
+      type: object
+      properties:
+        accessToken:
+          type: string
+          description: "JWT token for authenticating subsequent requests."
+        refreshToken:
+          type: string
+          description: "Token used to obtain a new access token."
+        expiresIn:
+          type: integer
+          example: 3600
+
+    JournalEntrySummary:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        encryptedTitle:
+          type: string
+          description: "The encrypted title of the journal entry."
+          example: "U2FsdGVkX1+..."
+        createdAt:
+          type: string
+          format: date-time
+        lastModified:
+          type: string
+          format: date-time
+
+    JournalEntry:
+      allOf:
+        - $ref: '#/components/schemas/JournalEntrySummary'
+        - type: object
+          properties:
+            conversation:
+              type: array
+              items:
+                $ref: '#/components/schemas/ConversationMessage'
+
+    ConversationMessage:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        sender:
+          type: string
+          enum: [user, ai]
+        encryptedContent:
+          type: string
+          description: "The encrypted message content."
+          example: "U2FsdGVkX1+..."
+        timestamp:
+          type: string
+          format: date-time
+        phase:
+          type: string
+          description: "The conversational phase identified by the AI."
+          enum: [validation, expression, reframing, action, unknown]
+
+    UserInteractionRequest:
+      type: object
+      properties:
+        encryptedContent:
+          type: string
+          description: "The user's message, encrypted on the client."
+          example: "U2FsdGVkX1+..."
+      required:
+        - encryptedContent
+
+    AIInteractionResponse:
+      type: object
+      properties:
+        aiResponse:
+          type: string
+          description: "The plain-text response from the AI."
+          example: "That sounds incredibly frustrating. Can you tell me more about what happened?"
+        phase:
+          type: string
+          description: "The conversational phase of the AI's response."
+          enum: [validation, expression, reframing, action]
+        timestamp:
+          type: string
+          format: date-time
+
+    CrisisResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: "It sounds like you are going through a difficult time. Please reach out for help. You can connect with people who can support you by calling or texting 988 anytime in the US and Canada. In the UK, you can call 111."
+        resources:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              phone:
+                type: string
+              website:
+                type: string
+                format: uri
+
+    ExerciseSummary:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+          example: "5-Minute Box Breathing"
+        category:
+          type: string
+          example: "Calm Down"
+        duration:
+          type: integer
+          description: "Duration in minutes."
+          example: 5
+
+    Exercise:
+      allOf:
+        - $ref: '#/components/schemas/ExerciseSummary'
+        - type: object
+          properties:
+            description:
+              type: string
+              example: "A simple technique to calm your nervous system by focusing on your breath."
+            steps:
+              type: array
+              items:
+                type: string
+                example: "1. Inhale for 4 seconds."
+
+    Error:
+      type: object
+      properties:
+        code:
+          type: integer
+        message:
+          type: string
+      required:
+        - code
+        - message
