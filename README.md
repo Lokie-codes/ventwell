@@ -1,5 +1,7 @@
 # VentWell
 
+![VentWell Logo](docs\ventwell_image.png)
+
 *A private journaling app for processing thoughts and emotions—securely, privately, and constructively.*
 
 ---
